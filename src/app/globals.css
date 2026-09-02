@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 240 10% 12%;
+  --card: 0 0% 100%;
+  --border: 240 6% 90%;
+  --muted: 240 5% 96%;
+  --muted-foreground: 240 4% 46%;
+  --primary: 250 84% 60%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 250 84% 96%;
+  --destructive: 0 72% 51%;
+}
+
+.dark {
+  --background: 240 10% 8%;
+  --foreground: 240 5% 96%;
+  --card: 240 9% 11%;
+  --border: 240 6% 20%;
+  --muted: 240 6% 15%;
+  --muted-foreground: 240 5% 65%;
+  --primary: 250 84% 66%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 250 40% 20%;
+  --destructive: 0 72% 55%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 999px;
+}
+
+@keyframes slide-in-from-bottom-2 {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-in.slide-in-from-bottom-2 {
+  animation: slide-in-from-bottom-2 0.2s ease-out;
+}
