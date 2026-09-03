@@ -1,0 +1,1 @@
+ALTER TABLE `reminders` ADD `priority` text DEFAULT 'MEDIUM' NOT NULL;

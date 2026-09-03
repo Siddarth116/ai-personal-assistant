@@ -64,6 +64,7 @@ const badgeColors: Record<string, string> = {
   LOW: "bg-muted text-muted-foreground",
   MEDIUM: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
   HIGH: "bg-red-500/15 text-red-600 dark:text-red-400",
+  URGENT: "bg-red-600/20 text-red-700 dark:text-red-300 font-semibold",
   PENDING: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
   IN_PROGRESS: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
   CONFIRMED: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",

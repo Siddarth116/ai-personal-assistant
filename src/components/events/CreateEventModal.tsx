@@ -95,6 +95,7 @@ export function CreateEventModal({ open, onClose, onCreated }: { open: boolean; 
               <option value="LOW">Low</option>
               <option value="MEDIUM">Medium</option>
               <option value="HIGH">High</option>
+              <option value="URGENT">Urgent</option>
             </Select>
           </div>
           <div>

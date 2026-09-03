@@ -23,6 +23,7 @@ export async function createReminder(
     remindAt: toUtcIso(data.remindAt),
     timezone: data.timezone,
     status: data.status,
+    priority: data.priority,
     createdAt: now,
     updatedAt: now,
   };
@@ -43,10 +44,11 @@ export async function getReminder(userId: string, id: string): Promise<Reminder>
 
 export async function listReminders(
   userId: string,
-  filters: { status?: string } = {}
+  filters: { status?: string; priority?: string } = {}
 ): Promise<Reminder[]> {
   let rows = await db.select().from(reminders).where(eq(reminders.userId, userId)).all();
   if (filters.status) rows = rows.filter((r) => r.status === filters.status);
+  if (filters.priority) rows = rows.filter((r) => r.priority === filters.priority);
   return rows;
 }
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Input, Label, Textarea } from "@/components/ui/primitives";
+import { Input, Label, Select, Textarea } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { localInputToIso } from "@/lib/utils/clientDate";
@@ -15,10 +15,11 @@ export function CreateReminderModal({ open, onClose, onCreated }: { open: boolea
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
+  const [priority, setPriority] = useState("MEDIUM");
   const [loading, setLoading] = useState(false);
 
   function reset() {
-    setTitle(""); setDescription(""); setDate(""); setTime("");
+    setTitle(""); setDescription(""); setDate(""); setTime(""); setPriority("MEDIUM");
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -31,7 +32,7 @@ export function CreateReminderModal({ open, onClose, onCreated }: { open: boolea
       const res = await fetch("/api/reminders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description: description || undefined, remindAt, timezone }),
+        body: JSON.stringify({ title, description: description || undefined, remindAt, priority, timezone }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -69,6 +70,15 @@ export function CreateReminderModal({ open, onClose, onCreated }: { open: boolea
             <Label>Time</Label>
             <Input type="time" required value={time} onChange={(e) => setTime(e.target.value)} />
           </div>
+        </div>
+        <div>
+          <Label>Priority</Label>
+          <Select value={priority} onChange={(e) => setPriority(e.target.value)}>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+            <option value="URGENT">Urgent</option>
+          </Select>
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>

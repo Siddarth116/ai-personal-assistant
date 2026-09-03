@@ -152,11 +152,12 @@ export default function SchedulePage() {
                 <option key={s} value={s}>{s.replace("_", " ")}</option>
               ))}
             </Select>
-            <Select className="w-36" value={priority} onChange={(e) => setPriority(e.target.value)} disabled={type === "REMINDER"}>
+            <Select className="w-36" value={priority} onChange={(e) => setPriority(e.target.value)}>
               <option value="">Any priority</option>
               <option value="LOW">Low</option>
               <option value="MEDIUM">Medium</option>
               <option value="HIGH">High</option>
+              <option value="URGENT">Urgent</option>
             </Select>
           </div>
         </Card>

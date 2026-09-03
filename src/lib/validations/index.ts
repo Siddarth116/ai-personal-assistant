@@ -38,6 +38,7 @@ export const createReminderSchema = z.object({
   remindAt: isoDateTime,
   timezone: z.string().default("Asia/Kolkata"),
   status: z.enum(REMINDER_STATUSES).default("PENDING"),
+  priority: z.enum(PRIORITIES).default("MEDIUM"),
 });
 
 export const updateReminderSchema = createReminderSchema.partial();

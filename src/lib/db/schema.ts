@@ -35,7 +35,7 @@ export const sessions = sqliteTable("sessions", {
 // ---------------------------------------------------------------------------
 
 export const EVENT_STATUSES = ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"] as const;
-export const PRIORITIES = ["LOW", "MEDIUM", "HIGH"] as const;
+export const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
 export const RECURRENCE_TYPES = ["NONE", "DAILY", "WEEKLY", "MONTHLY", "YEARLY"] as const;
 
 export const events = sqliteTable("events", {
@@ -103,6 +103,7 @@ export const reminders = sqliteTable("reminders", {
   remindAt: text("remind_at").notNull(), // ISO 8601 UTC
   timezone: text("timezone").notNull().default("Asia/Kolkata"),
   status: text("status", { enum: REMINDER_STATUSES }).notNull().default("PENDING"),
+  priority: text("priority", { enum: PRIORITIES }).notNull().default("MEDIUM"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(current_timestamp)`),

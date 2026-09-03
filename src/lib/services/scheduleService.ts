@@ -146,8 +146,7 @@ export async function getSchedule(userId: string, filters: ScheduleFilters): Pro
         .all();
 
       if (statusCheck === true && status) rows = rows.filter((r) => r.status === status);
-      // Reminders have no priority field - a priority filter simply excludes them.
-      if (priority) rows = [];
+      if (priority && PRIORITY_SET.has(priority)) rows = rows.filter((r) => r.priority === priority);
       if (search) {
         const q = search.toLowerCase();
         rows = rows.filter(
@@ -164,7 +163,7 @@ export async function getSchedule(userId: string, filters: ScheduleFilters): Pro
           time: r.remindAt,
           endTime: null,
           status: r.status,
-          priority: null,
+          priority: r.priority,
           timezone: r.timezone,
           location: null,
         });

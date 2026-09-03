@@ -139,6 +139,7 @@ function ReminderSection({
               {reminder.description && <p className="text-sm text-muted-foreground mt-0.5">{reminder.description}</p>}
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <Badge tone={reminder.status}>{reminder.status}</Badge>
+                <Badge tone={reminder.priority}>{reminder.priority}</Badge>
                 <span className="text-xs text-muted-foreground">{fmt(reminder.remindAt, timezone, "ccc, d LLL, h:mm a")}</span>
               </div>
             </div>

@@ -7,7 +7,8 @@ export const GET = withErrorHandling("reminders/list", async (req: Request) => {
   const user = await requireUser();
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") ?? undefined;
-  const reminders = await reminderService.listReminders(user.id, { status });
+  const priority = searchParams.get("priority") ?? undefined;
+  const reminders = await reminderService.listReminders(user.id, { status, priority });
   return NextResponse.json({ reminders });
 });
 

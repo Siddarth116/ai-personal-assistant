@@ -8,6 +8,7 @@ import { withErrorHandling, NotFoundError, AppError } from "@/lib/utils/apiRespo
 import { isAiConfigured, getOpenAiClient, AI_MODEL } from "@/lib/ai/client";
 import { toolDefinitions, executeTool } from "@/lib/ai/tools";
 import { buildSystemPrompt } from "@/lib/ai/systemPrompt";
+import { detectUrgencyCues, formatUrgencyHint } from "@/lib/ai/urgency";
 import { nowIso } from "@/lib/utils/date";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
@@ -68,7 +69,7 @@ export const POST = withErrorHandling("chat", async (req: Request) => {
     .all();
 
   const chatMessages: ChatCompletionMessageParam[] = [
-    { role: "system", content: buildSystemPrompt(user.name, user.timezone) },
+    { role: "system", content: buildSystemPrompt(user.name, user.timezone, formatUrgencyHint(detectUrgencyCues(message))) },
     ...history
       .filter((m) => m.role === "USER" || m.role === "ASSISTANT")
       .map((m): ChatCompletionMessageParam => ({

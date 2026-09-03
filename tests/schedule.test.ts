@@ -205,7 +205,7 @@ describe("getSchedule - unified timeline", () => {
     expect(result[0].title).toBe("Done");
   });
 
-  it("filters by priority, excluding reminders (which have no priority) when priority filter is set", async () => {
+  it("filters by priority across all types, since reminders now have priority too", async () => {
     await createEvent(userId, {
       title: "High priority event",
       startTime: "2026-01-01T09:00:00.000Z",
@@ -217,14 +217,35 @@ describe("getSchedule - unified timeline", () => {
       recurrence: "NONE",
     });
     await createReminder(userId, {
-      title: "A reminder",
+      title: "High priority reminder",
       remindAt: "2026-01-01T12:00:00.000Z",
       timezone: "Asia/Kolkata",
       status: "PENDING",
+      priority: "HIGH",
+    });
+    await createReminder(userId, {
+      title: "Low priority reminder",
+      remindAt: "2026-01-01T13:00:00.000Z",
+      timezone: "Asia/Kolkata",
+      status: "PENDING",
+      priority: "LOW",
     });
     const result = await getSchedule(userId, { ...RANGE, priority: "HIGH" });
+    expect(result).toHaveLength(2);
+    expect(result.map((i) => i.type).sort()).toEqual(["EVENT", "REMINDER"]);
+  });
+
+  it("supports the URGENT priority tier across all types", async () => {
+    await createTask(userId, {
+      title: "Urgent task",
+      dueAt: "2026-01-01T11:00:00.000Z",
+      timezone: "Asia/Kolkata",
+      status: "PENDING",
+      priority: "URGENT",
+    });
+    const result = await getSchedule(userId, { ...RANGE, priority: "URGENT" });
     expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("EVENT");
+    expect(result[0].priority).toBe("URGENT");
   });
 
   it("filters by search across title and description", async () => {
