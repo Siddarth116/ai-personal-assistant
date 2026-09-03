@@ -35,7 +35,13 @@ export const sessions = sqliteTable("sessions", {
 // ---------------------------------------------------------------------------
 
 export const EVENT_STATUSES = ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"] as const;
-export const PRIORITIES = ["LOW", "MEDIUM", "HIGH"] as const;
+export const PRIORITIES = [
+  "LOW",
+  "MEDIUM_LOW",
+  "MEDIUM",
+  "MEDIUM_HIGH",
+  "HIGH",
+] as const;
 export const RECURRENCE_TYPES = ["NONE", "DAILY", "WEEKLY", "MONTHLY", "YEARLY"] as const;
 
 export const events = sqliteTable("events", {
