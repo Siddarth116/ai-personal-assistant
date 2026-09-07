@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, ListTodo, Bell, MapPin } from "lucide-react";
+import { CalendarClock, ListTodo, Bell, MapPin, Repeat } from "lucide-react";
 import { Badge } from "@/components/ui/primitives";
 import { fmtTime } from "@/lib/utils/clientDate";
 import type { ScheduleItem } from "@/lib/services/scheduleService";
@@ -33,6 +33,11 @@ export function TimelineItem({ item, timezone, hour24 }: { item: ScheduleItem; t
           </Badge>
           <Badge tone={item.status}>{item.status.replace("_", " ")}</Badge>
           {item.priority && <Badge tone={item.priority}>{item.priority}</Badge>}
+          {item.recurrence && item.recurrence !== "NONE" && (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Repeat className="h-3 w-3" /> {item.recurrence.charAt(0) + item.recurrence.slice(1).toLowerCase()}
+            </span>
+          )}
         </div>
         <p className="font-medium mt-1 truncate">{item.title}</p>
         {item.description && <p className="text-sm text-muted-foreground truncate">{item.description}</p>}

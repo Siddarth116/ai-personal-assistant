@@ -1,6 +1,8 @@
-import { and, eq, gte, lte, lt, gt, or } from "drizzle-orm";
+import { and, eq, ne, or, lt, gt, gte, lte } from "drizzle-orm";
+import { DateTime } from "luxon";
 import { db } from "@/lib/db";
 import { events, tasks, reminders, EVENT_STATUSES, TASK_STATUSES, REMINDER_STATUSES, PRIORITIES } from "@/lib/db/schema";
+import { expandOccurrences } from "@/lib/utils/recurrence";
 
 export type ScheduleItemType = "EVENT" | "TASK" | "REMINDER";
 
@@ -17,6 +19,8 @@ export interface ScheduleItem {
   priority: string | null;
   timezone: string;
   location: string | null;
+  /** "NONE" for tasks/reminders/non-repeating events; otherwise the repeat pattern. */
+  recurrence: string | null;
 }
 
 export interface ScheduleFilters {
@@ -53,7 +57,11 @@ export async function getSchedule(userId: string, filters: ScheduleFilters): Pro
 
   const items: ScheduleItem[] = [];
 
-  // ---- Events: include if the event's [startTime, endTime] overlaps [start, end] ----
+  // ---- Events: include if a *concrete occurrence* of the event overlaps [start, end].
+  // Non-recurring events: the single stored [startTime, endTime] must overlap.
+  // Recurring events: any anchor whose start is not after the range end could still
+  // produce a future occurrence inside the range, so we fetch those broadly and let
+  // expandOccurrences() compute the real overlapping occurrence dates.
   if (wantTypes.has("EVENT")) {
     const statusCheck = statusAppliesTo(status, EVENT_STATUS_SET);
     if (statusCheck !== false) {
@@ -63,8 +71,10 @@ export async function getSchedule(userId: string, filters: ScheduleFilters): Pro
         .where(
           and(
             eq(events.userId, userId),
-            lt(events.startTime, end),
-            gt(events.endTime, start)
+            or(
+              and(eq(events.recurrence, "NONE"), lt(events.startTime, end), gt(events.endTime, start)),
+              and(ne(events.recurrence, "NONE"), lte(events.startTime, end))
+            )
           )
         )
         .all();
@@ -81,19 +91,29 @@ export async function getSchedule(userId: string, filters: ScheduleFilters): Pro
         );
       }
 
+      const rangeStartDT = DateTime.fromISO(start, { zone: "utc" });
+      const rangeEndDT = DateTime.fromISO(end, { zone: "utc" });
+
       for (const e of rows) {
-        items.push({
-          id: e.id,
-          type: "EVENT",
-          title: e.title,
-          description: e.description,
-          time: e.startTime,
-          endTime: e.endTime,
-          status: e.status,
-          priority: e.priority,
-          timezone: e.timezone,
-          location: e.location,
-        });
+        const anchorStart = DateTime.fromISO(e.startTime, { zone: "utc" });
+        const anchorEnd = DateTime.fromISO(e.endTime, { zone: "utc" });
+        const occurrences = expandOccurrences(anchorStart, anchorEnd, e.recurrence, rangeStartDT, rangeEndDT);
+
+        for (const occ of occurrences) {
+          items.push({
+            id: e.id,
+            type: "EVENT",
+            title: e.title,
+            description: e.description,
+            time: occ.start.toUTC().toISO() as string,
+            endTime: occ.end.toUTC().toISO() as string,
+            status: e.status,
+            priority: e.priority,
+            timezone: e.timezone,
+            location: e.location,
+            recurrence: e.recurrence,
+          });
+        }
       }
     }
   }
@@ -130,6 +150,7 @@ export async function getSchedule(userId: string, filters: ScheduleFilters): Pro
           priority: t.priority,
           timezone: t.timezone,
           location: null,
+          recurrence: null,
         });
       }
     }
@@ -166,6 +187,7 @@ export async function getSchedule(userId: string, filters: ScheduleFilters): Pro
           priority: r.priority,
           timezone: r.timezone,
           location: null,
+          recurrence: null,
         });
       }
     }

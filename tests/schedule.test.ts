@@ -346,4 +346,86 @@ describe("getSchedule - unified timeline", () => {
     const result = await getSchedule(userId, RANGE);
     expect(result).toEqual([]);
   });
+
+  it("expands a weekly recurring event across future weeks - regression test for the reported bug", async () => {
+    // A Monday 8am class recurring weekly, created once.
+    await createEvent(userId, {
+      title: "CSEN2071 - Cryptography and Network Security",
+      startTime: "2026-09-07T02:30:00.000Z", // Monday 8am IST
+      endTime: "2026-09-07T03:20:00.000Z",
+      timezone: "Asia/Kolkata",
+      status: "CONFIRMED",
+      priority: "MEDIUM",
+      allDay: false,
+      recurrence: "WEEKLY",
+    });
+
+    // Two weeks later - this used to return nothing (the bug).
+    const twoWeeksLater = await getSchedule(userId, {
+      start: "2026-09-14T00:00:00.000Z",
+      end: "2026-09-14T23:59:59.000Z",
+    });
+    expect(twoWeeksLater).toHaveLength(1);
+    expect(twoWeeksLater[0].title).toBe("CSEN2071 - Cryptography and Network Security");
+    expect(twoWeeksLater[0].recurrence).toBe("WEEKLY");
+
+    // A whole semester later - should still show up.
+    const monthsLater = await getSchedule(userId, {
+      start: "2026-11-30T00:00:00.000Z",
+      end: "2026-11-30T23:59:59.000Z",
+    });
+    expect(monthsLater).toHaveLength(1);
+
+    // A non-Monday in the same week should NOT show this class.
+    const wrongDay = await getSchedule(userId, {
+      start: "2026-09-15T00:00:00.000Z",
+      end: "2026-09-15T23:59:59.000Z",
+    });
+    expect(wrongDay).toHaveLength(0);
+
+    // Before the anchor start date, it shouldn't appear at all.
+    const beforeAnchor = await getSchedule(userId, {
+      start: "2026-08-01T00:00:00.000Z",
+      end: "2026-08-31T23:59:59.000Z",
+    });
+    expect(beforeAnchor).toHaveLength(0);
+  });
+
+  it("a full weekly timetable (5 recurring classes) appears correctly every week", async () => {
+    const classes = [
+      { day: "2026-09-07", title: "Cryptography" }, // Monday
+      { day: "2026-09-08", title: "Databases" }, // Tuesday
+      { day: "2026-09-09", title: "Networks" }, // Wednesday
+      { day: "2026-09-10", title: "AI Fundamentals" }, // Thursday
+      { day: "2026-09-11", title: "Operating Systems" }, // Friday
+    ];
+
+    for (const c of classes) {
+      await createEvent(userId, {
+        title: c.title,
+        startTime: `${c.day}T04:00:00.000Z`,
+        endTime: `${c.day}T05:00:00.000Z`,
+        timezone: "Asia/Kolkata",
+        status: "CONFIRMED",
+        priority: "MEDIUM",
+        allDay: false,
+        recurrence: "WEEKLY",
+      });
+    }
+
+    // Third week later, the full week (Mon-Fri) should show all 5 classes on the right days.
+    const weekThreeLater = await getSchedule(userId, {
+      start: "2026-09-21T00:00:00.000Z",
+      end: "2026-09-25T23:59:59.000Z",
+    });
+    expect(weekThreeLater).toHaveLength(5);
+    expect(new Set(weekThreeLater.map((i) => i.title))).toEqual(new Set(classes.map((c) => c.title)));
+
+    // Saturday of that week should have none of them.
+    const saturday = await getSchedule(userId, {
+      start: "2026-09-26T00:00:00.000Z",
+      end: "2026-09-26T23:59:59.000Z",
+    });
+    expect(saturday).toHaveLength(0);
+  });
 });

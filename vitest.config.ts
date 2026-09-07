@@ -9,7 +9,14 @@ export default defineConfig({
     testTimeout: 15000,
     pool: "forks",
     env: {
-      DATABASE_URL: `file:./data/test-${Date.now()}.db`,
+      // A true in-memory database, private to each forked test process.
+      // Previously this was a per-run file path computed once in this
+      // config (evaluated in the main process), so every forked test file
+      // ended up sharing the exact same physical file and hit SQLITE_BUSY
+      // lock contention when run in parallel - especially reliably visible
+      // on some filesystems (e.g. WSL paths under /mnt/c). :memory: has no
+      // shared file at all, so there's nothing to contend over.
+      DATABASE_URL: ":memory:",
     },
   },
   resolve: {
