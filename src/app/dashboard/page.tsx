@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { CalendarClock, ListTodo, Bell, CheckCircle2, ArrowRight } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -24,8 +24,10 @@ export default function DashboardPage() {
   const [today, setToday] = useState<ScheduleItem[] | null>(null);
   const [upcoming, setUpcoming] = useState<ScheduleItem[] | null>(null);
   const [error, setError] = useState(false);
+  const requestIdRef = useRef(0);
 
   const load = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setError(false);
     setToday(null);
     setUpcoming(null);
@@ -42,10 +44,11 @@ export default function DashboardPage() {
       if (!todayRes.ok || !upcomingRes.ok) throw new Error("Failed to load");
       const todayData = await todayRes.json();
       const upcomingData = await upcomingRes.json();
+      if (requestId !== requestIdRef.current) return; // a newer request has since been issued - discard this stale result
       setToday(todayData.items);
       setUpcoming(upcomingData.items);
     } catch {
-      setError(true);
+      if (requestId === requestIdRef.current) setError(true);
     }
   }, []);
 

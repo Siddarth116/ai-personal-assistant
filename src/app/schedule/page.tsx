@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, CalendarClock, Search } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { QuickAdd } from "@/components/layout/QuickAdd";
@@ -58,7 +58,16 @@ export default function SchedulePage() {
   const [items, setItems] = useState<ScheduleItem[] | null>(null);
   const [error, setError] = useState(false);
 
+  // Guards against out-of-order responses: e.g. Month view's heavier
+  // full-grid query can still be in flight when the user clicks a single
+  // day (a much smaller, faster query). Without this, the slow month query
+  // can resolve AFTER the fast day query and overwrite the correct result
+  // with stale, wider-range data. Only the response matching the most
+  // recently issued request is ever applied to state.
+  const requestIdRef = useRef(0);
+
   const load = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setError(false);
     setItems(null);
     try {
@@ -87,9 +96,10 @@ export default function SchedulePage() {
       const res = await fetch(`/api/schedule?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to load schedule");
       const data = await res.json();
+      if (requestId !== requestIdRef.current) return; // a newer request has since been issued - discard this stale result
       setItems(data.items);
     } catch {
-      setError(true);
+      if (requestId === requestIdRef.current) setError(true);
     }
   }, [anchor, view, type, status, priority, search]);
 
