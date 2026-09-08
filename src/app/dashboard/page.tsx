@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/primitives";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState, Skeleton } from "@/components/ui/ErrorState";
 import { TimelineItem } from "@/components/schedule/TimelineItem";
+import { groupByDay } from "@/lib/utils/clientDate";
 import type { ScheduleItem } from "@/lib/services/scheduleService";
 
 function greeting(): string {
@@ -74,12 +75,15 @@ export default function DashboardPage() {
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card className="p-5">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-0.5">
             <h2 className="font-semibold">Today</h2>
             <Link href="/schedule" className="text-sm text-primary flex items-center gap-1">
               View schedule <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+          </p>
           {error ? (
             <ErrorState onRetry={load} />
           ) : today === null ? (
@@ -113,9 +117,23 @@ export default function DashboardPage() {
           ) : upcoming.length === 0 ? (
             <EmptyState icon={CalendarClock} title="Nothing coming up" description="Your week is wide open." />
           ) : (
-            <div className="divide-y divide-border">
-              {upcoming.slice(0, 8).map((item) => (
-                <TimelineItem key={`${item.type}-${item.id}`} item={item} timezone={user?.timezone ?? "Asia/Kolkata"} hour24={user?.hourFormat === 24} />
+            <div>
+              {groupByDay(upcoming.slice(0, 12), user?.timezone ?? "Asia/Kolkata").map((group) => (
+                <div key={group.key}>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-3 pb-1 first:pt-0">
+                    {group.label}
+                  </p>
+                  <div className="divide-y divide-border">
+                    {group.items.map((item) => (
+                      <TimelineItem
+                        key={`${item.type}-${item.id}`}
+                        item={item}
+                        timezone={user?.timezone ?? "Asia/Kolkata"}
+                        hour24={user?.hourFormat === 24}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}

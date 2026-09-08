@@ -1,16 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ListTodo, Check, Trash2, Circle, CheckCircle2 } from "lucide-react";
+import { ListTodo, Trash2, Circle, CheckCircle2, Pencil, Plus } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { QuickAdd } from "@/components/layout/QuickAdd";
 import { useSession } from "@/components/layout/SessionProvider";
 import { Card, Badge } from "@/components/ui/primitives";
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState, Skeleton } from "@/components/ui/ErrorState";
 import { useToast } from "@/components/ui/Toast";
+import { CreateTaskModal } from "@/components/tasks/CreateTaskModal";
 import { fmtDay } from "@/lib/utils/clientDate";
 import type { Task } from "@/lib/db/schema";
+
+type TaskModalState = { mode: "create" } | { mode: "edit"; task: Task } | null;
 
 export default function TasksPage() {
   const { user } = useSession();
@@ -18,7 +22,7 @@ export default function TasksPage() {
   const timezone = user?.timezone ?? "Asia/Kolkata";
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [error, setError] = useState(false);
-  const [quickOpen, setQuickOpen] = useState(false);
+  const [modal, setModal] = useState<TaskModalState>(null);
 
   const load = useCallback(async () => {
     setError(false);
@@ -64,9 +68,15 @@ export default function TasksPage() {
     }
   }
 
+  const newTaskButton = (
+    <Button size="sm" onClick={() => setModal({ mode: "create" })}>
+      <Plus className="h-4 w-4" /> New Task
+    </Button>
+  );
+
   if (error) {
     return (
-      <AppShell title="Tasks">
+      <AppShell title="Tasks" actions={newTaskButton}>
         <ErrorState onRetry={load} />
       </AppShell>
     );
@@ -74,7 +84,7 @@ export default function TasksPage() {
 
   if (tasks === null) {
     return (
-      <AppShell title="Tasks">
+      <AppShell title="Tasks" actions={newTaskButton}>
         <div className="space-y-3">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
@@ -94,17 +104,31 @@ export default function TasksPage() {
   const completed = tasks.filter((t) => t.status === "COMPLETED");
 
   return (
-    <AppShell title="Tasks">
+    <AppShell title="Tasks" actions={newTaskButton}>
       {tasks.length === 0 ? (
-        <EmptyState icon={ListTodo} title="No tasks yet" description="Create your first task to get started." actionLabel="New Task" onAction={() => setQuickOpen(true)} />
+        <EmptyState
+          icon={ListTodo}
+          title="No tasks yet"
+          description="Create your first task to get started."
+          actionLabel="New Task"
+          onAction={() => setModal({ mode: "create" })}
+        />
       ) : (
         <div className="space-y-8">
-          <TaskSection title="Overdue" tasks={overdue} timezone={timezone} onToggle={toggleComplete} onDelete={remove} accent="text-destructive" />
-          <TaskSection title="Today" tasks={today} timezone={timezone} onToggle={toggleComplete} onDelete={remove} />
-          <TaskSection title="Upcoming" tasks={upcoming} timezone={timezone} onToggle={toggleComplete} onDelete={remove} />
-          <TaskSection title="Completed" tasks={completed} timezone={timezone} onToggle={toggleComplete} onDelete={remove} />
+          <TaskSection title="Overdue" tasks={overdue} timezone={timezone} onToggle={toggleComplete} onEdit={(t) => setModal({ mode: "edit", task: t })} onDelete={remove} accent="text-destructive" />
+          <TaskSection title="Today" tasks={today} timezone={timezone} onToggle={toggleComplete} onEdit={(t) => setModal({ mode: "edit", task: t })} onDelete={remove} />
+          <TaskSection title="Upcoming" tasks={upcoming} timezone={timezone} onToggle={toggleComplete} onEdit={(t) => setModal({ mode: "edit", task: t })} onDelete={remove} />
+          <TaskSection title="Completed" tasks={completed} timezone={timezone} onToggle={toggleComplete} onEdit={(t) => setModal({ mode: "edit", task: t })} onDelete={remove} />
         </div>
       )}
+
+      <CreateTaskModal
+        open={modal !== null}
+        onClose={() => setModal(null)}
+        onSaved={load}
+        task={modal?.mode === "edit" ? modal.task : undefined}
+      />
+
       <QuickAdd onCreated={load} />
     </AppShell>
   );
@@ -115,6 +139,7 @@ function TaskSection({
   tasks,
   timezone,
   onToggle,
+  onEdit,
   onDelete,
   accent,
 }: {
@@ -122,6 +147,7 @@ function TaskSection({
   tasks: Task[];
   timezone: string;
   onToggle: (t: Task) => void;
+  onEdit: (t: Task) => void;
   onDelete: (t: Task) => void;
   accent?: string;
 }) {
@@ -147,9 +173,14 @@ function TaskSection({
                 {task.dueAt && <span className="text-xs text-muted-foreground">Due {fmtDay(task.dueAt, timezone)}</span>}
               </div>
             </div>
-            <button onClick={() => onDelete(task)} className="text-muted-foreground hover:text-destructive shrink-0">
-              <Trash2 className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <button onClick={() => onEdit(task)} className="text-muted-foreground hover:text-foreground p-1">
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button onClick={() => onDelete(task)} className="text-muted-foreground hover:text-destructive p-1">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
           </Card>
         ))}
       </div>

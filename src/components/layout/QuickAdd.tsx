@@ -41,8 +41,8 @@ export function QuickAdd({ onCreated }: { onCreated?: () => void }) {
       </div>
 
       <CreateEventModal open={modal === "event"} onClose={() => setModal(null)} onCreated={handleCreated} />
-      <CreateTaskModal open={modal === "task"} onClose={() => setModal(null)} onCreated={handleCreated} />
-      <CreateReminderModal open={modal === "reminder"} onClose={() => setModal(null)} onCreated={handleCreated} />
+      <CreateTaskModal open={modal === "task"} onClose={() => setModal(null)} onSaved={handleCreated} />
+      <CreateReminderModal open={modal === "reminder"} onClose={() => setModal(null)} onSaved={handleCreated} />
     </>
   );
 }

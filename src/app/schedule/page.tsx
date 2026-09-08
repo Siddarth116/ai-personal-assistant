@@ -11,6 +11,7 @@ import { Input, Select } from "@/components/ui/primitives";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState, Skeleton } from "@/components/ui/ErrorState";
 import { TimelineItem } from "@/components/schedule/TimelineItem";
+import { groupByDay } from "@/lib/utils/clientDate";
 import type { ScheduleItem } from "@/lib/services/scheduleService";
 
 type ViewMode = "day" | "week";
@@ -85,7 +86,14 @@ export default function SchedulePage() {
 
   const rangeLabel =
     view === "day"
-      ? anchor.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })
+      ? (() => {
+          const startOfDay = new Date(anchor); startOfDay.setHours(0, 0, 0, 0);
+          const today = new Date(); today.setHours(0, 0, 0, 0);
+          const diffDays = Math.round((startOfDay.getTime() - today.getTime()) / 86400000);
+          const relative = diffDays === 0 ? "Today" : diffDays === 1 ? "Tomorrow" : diffDays === -1 ? "Yesterday" : null;
+          const formatted = anchor.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+          return relative ? `${relative} · ${formatted}` : formatted;
+        })()
       : (() => {
           const start = new Date(anchor);
           const day = start.getDay();
@@ -173,6 +181,21 @@ export default function SchedulePage() {
             </div>
           ) : items.length === 0 ? (
             <EmptyState icon={CalendarClock} title="No items in this range" description="Try a different date range or clear your filters." />
+          ) : view === "week" ? (
+            <div>
+              {groupByDay(items, timezone).map((group) => (
+                <div key={group.key}>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-4 pb-1 first:pt-0">
+                    {group.label}
+                  </p>
+                  <div className="divide-y divide-border">
+                    {group.items.map((item) => (
+                      <TimelineItem key={`${item.type}-${item.id}`} item={item} timezone={timezone} hour24={hour24} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="divide-y divide-border">
               {items.map((item) => (

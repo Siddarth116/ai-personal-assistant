@@ -1,16 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Input, Label, Select, Textarea } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import { localInputToIso } from "@/lib/utils/clientDate";
+import { localInputToIso, isoToLocalInput } from "@/lib/utils/clientDate";
 import { useSession } from "@/components/layout/SessionProvider";
+import type { Task } from "@/lib/db/schema";
 
-export function CreateTaskModal({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
+interface TaskModalProps {
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+  /** When provided, the modal edits this task instead of creating a new one. */
+  task?: Task;
+}
+
+export function CreateTaskModal({ open, onClose, onSaved, task }: TaskModalProps) {
   const { user } = useSession();
   const { showToast } = useToast();
+  const timezone = user?.timezone ?? "Asia/Kolkata";
+  const isEditing = !!task;
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -18,39 +30,61 @@ export function CreateTaskModal({ open, onClose, onCreated }: { open: boolean; o
   const [priority, setPriority] = useState("MEDIUM");
   const [loading, setLoading] = useState(false);
 
-  function reset() {
-    setTitle(""); setDescription(""); setDueDate(""); setDueTime(""); setPriority("MEDIUM");
-  }
+  // Populate fields whenever the modal is opened - either blank for a new
+  // task, or pre-filled from the task being edited.
+  useEffect(() => {
+    if (!open) return;
+    if (task) {
+      setTitle(task.title);
+      setDescription(task.description ?? "");
+      if (task.dueAt) {
+        const local = isoToLocalInput(task.dueAt, timezone);
+        const [d, t] = local.split("T");
+        setDueDate(d);
+        setDueTime(t);
+      } else {
+        setDueDate("");
+        setDueTime("");
+      }
+      setPriority(task.priority);
+    } else {
+      setTitle("");
+      setDescription("");
+      setDueDate("");
+      setDueTime("");
+      setPriority("MEDIUM");
+    }
+  }, [open, task, timezone]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
-      const timezone = user?.timezone ?? "Asia/Kolkata";
       const dueAt = dueDate ? localInputToIso(`${dueDate}T${dueTime || "23:59"}`, timezone) : undefined;
-      const res = await fetch("/api/tasks", {
-        method: "POST",
+      const body = { title, description: description || undefined, dueAt, priority, timezone };
+
+      const res = await fetch(isEditing ? `/api/tasks/${task!.id}` : "/api/tasks", {
+        method: isEditing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description: description || undefined, dueAt, priority, timezone }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        showToast(data.error || "Unable to create task.", "error");
+        showToast(data.error || `Unable to ${isEditing ? "save" : "create"} task.`, "error");
         return;
       }
-      showToast("Task created successfully.");
-      reset();
-      onCreated();
+      showToast(isEditing ? "Task updated." : "Task created successfully.");
+      onSaved();
       onClose();
     } catch {
-      showToast("Unable to create task.", "error");
+      showToast(`Unable to ${isEditing ? "save" : "create"} task.`, "error");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="New Task">
+    <Modal open={open} onClose={onClose} title={isEditing ? "Edit Task" : "New Task"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <Label>Title</Label>
@@ -76,12 +110,12 @@ export function CreateTaskModal({ open, onClose, onCreated }: { open: boolean; o
             <option value="LOW">Low</option>
             <option value="MEDIUM">Medium</option>
             <option value="HIGH">High</option>
-              <option value="URGENT">Urgent</option>
+            <option value="URGENT">Urgent</option>
           </Select>
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={loading}>Create Task</Button>
+          <Button type="submit" disabled={loading}>{isEditing ? "Save Changes" : "Create Task"}</Button>
         </div>
       </form>
     </Modal>
