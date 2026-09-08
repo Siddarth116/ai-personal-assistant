@@ -11,10 +11,11 @@ import { Input, Select } from "@/components/ui/primitives";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState, Skeleton } from "@/components/ui/ErrorState";
 import { TimelineItem } from "@/components/schedule/TimelineItem";
+import { MonthGrid } from "@/components/schedule/MonthGrid";
 import { groupByDay } from "@/lib/utils/clientDate";
 import type { ScheduleItem } from "@/lib/services/scheduleService";
 
-type ViewMode = "day" | "week";
+type ViewMode = "day" | "week" | "month";
 
 // Status options are type-aware: never let the UI request an invalid
 // status/type combination (e.g. TASK + CONFIRMED).
@@ -24,6 +25,23 @@ const STATUS_OPTIONS: Record<string, string[]> = {
   TASK: ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
   REMINDER: ["PENDING", "COMPLETED", "DISMISSED", "CANCELLED"],
 };
+
+function monthGridRange(anchor: Date): { start: Date; end: Date } {
+  const firstOfMonth = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const lastOfMonth = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+
+  const startDow = (firstOfMonth.getDay() + 6) % 7; // Monday = 0
+  const start = new Date(firstOfMonth);
+  start.setDate(start.getDate() - startDow);
+  start.setHours(0, 0, 0, 0);
+
+  const endDow = (lastOfMonth.getDay() + 6) % 7;
+  const end = new Date(lastOfMonth);
+  end.setDate(end.getDate() + (6 - endDow));
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
 
 export default function SchedulePage() {
   const { user } = useSession();
@@ -44,19 +62,20 @@ export default function SchedulePage() {
     setError(false);
     setItems(null);
     try {
-      const start = new Date(anchor);
-      const end = new Date(anchor);
+      let start: Date, end: Date;
       if (view === "day") {
-        start.setHours(0, 0, 0, 0);
-        end.setHours(23, 59, 59, 999);
-      } else {
-        const day = start.getDay();
-        const diffToMonday = (day + 6) % 7;
+        start = new Date(anchor); start.setHours(0, 0, 0, 0);
+        end = new Date(anchor); end.setHours(23, 59, 59, 999);
+      } else if (view === "week") {
+        start = new Date(anchor);
+        const diffToMonday = (start.getDay() + 6) % 7;
         start.setDate(start.getDate() - diffToMonday);
         start.setHours(0, 0, 0, 0);
-        end.setTime(start.getTime());
+        end = new Date(start);
         end.setDate(end.getDate() + 6);
         end.setHours(23, 59, 59, 999);
+      } else {
+        ({ start, end } = monthGridRange(anchor));
       }
 
       const params = new URLSearchParams({ start: start.toISOString(), end: end.toISOString() });
@@ -80,8 +99,15 @@ export default function SchedulePage() {
 
   function shift(dir: 1 | -1) {
     const next = new Date(anchor);
-    next.setDate(next.getDate() + dir * (view === "day" ? 1 : 7));
+    if (view === "day") next.setDate(next.getDate() + dir);
+    else if (view === "week") next.setDate(next.getDate() + dir * 7);
+    else next.setMonth(next.getMonth() + dir);
     setAnchor(next);
+  }
+
+  function selectDayFromGrid(date: Date) {
+    setAnchor(date);
+    setView("day");
   }
 
   const rangeLabel =
@@ -94,14 +120,16 @@ export default function SchedulePage() {
           const formatted = anchor.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
           return relative ? `${relative} · ${formatted}` : formatted;
         })()
-      : (() => {
+      : view === "week"
+      ? (() => {
           const start = new Date(anchor);
           const day = start.getDay();
           start.setDate(start.getDate() - ((day + 6) % 7));
           const end = new Date(start);
           end.setDate(end.getDate() + 6);
           return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${end.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
-        })();
+        })()
+      : anchor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
   return (
     <AppShell title="Schedule">
@@ -109,17 +137,17 @@ export default function SchedulePage() {
         <Card className="p-4">
           <div className="flex flex-wrap items-center gap-3 justify-between">
             <div className="flex items-center gap-2">
-              <Button size="icon" variant="outline" onClick={() => shift(-1)}>
+              <Button size="icon" variant="outline" onClick={() => shift(-1)} aria-label="Previous">
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <Button size="sm" variant="secondary" onClick={() => setAnchor(new Date())}>Today</Button>
-              <Button size="icon" variant="outline" onClick={() => shift(1)}>
+              <Button size="icon" variant="outline" onClick={() => shift(1)} aria-label="Next">
                 <ChevronRight className="h-4 w-4" />
               </Button>
               <span className="font-medium ml-2">{rangeLabel}</span>
             </div>
             <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-              {(["day", "week"] as ViewMode[]).map((v) => (
+              {(["day", "week", "month"] as ViewMode[]).map((v) => (
                 <button
                   key={v}
                   onClick={() => setView(v)}
@@ -170,7 +198,7 @@ export default function SchedulePage() {
           </div>
         </Card>
 
-        <Card className="p-5">
+        <Card className={view === "month" ? "p-4" : "p-5"}>
           {error ? (
             <ErrorState onRetry={load} />
           ) : items === null ? (
@@ -179,6 +207,8 @@ export default function SchedulePage() {
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
+          ) : view === "month" ? (
+            <MonthGrid anchor={anchor} items={items} timezone={timezone} onSelectDay={selectDayFromGrid} />
           ) : items.length === 0 ? (
             <EmptyState icon={CalendarClock} title="No items in this range" description="Try a different date range or clear your filters." />
           ) : view === "week" ? (
