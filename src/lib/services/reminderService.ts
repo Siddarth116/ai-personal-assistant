@@ -20,7 +20,7 @@ export async function createReminder(
     userId,
     title: data.title,
     description: data.description ?? null,
-    remindAt: toUtcIso(data.remindAt),
+    remindAt: toUtcIso(data.remindAt, data.timezone),
     timezone: data.timezone,
     status: data.status,
     priority: data.priority,
@@ -57,11 +57,11 @@ export async function updateReminder(
   id: string,
   input: Partial<z.infer<typeof updateReminderSchema>>
 ): Promise<Reminder> {
-  await getReminder(userId, id);
+  const existing = await getReminder(userId, id);
   const data = updateReminderSchema.parse(input);
 
   const patch: Partial<typeof reminders.$inferInsert> = { ...data, updatedAt: nowIso() };
-  if (data.remindAt) patch.remindAt = toUtcIso(data.remindAt);
+  if (data.remindAt) patch.remindAt = toUtcIso(data.remindAt, data.timezone ?? existing.timezone);
 
   await db.update(reminders).set(patch).where(and(eq(reminders.id, id), eq(reminders.userId, userId))).run();
   return getReminder(userId, id);

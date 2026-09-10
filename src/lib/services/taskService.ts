@@ -17,7 +17,7 @@ export async function createTask(userId: string, input: z.input<typeof createTas
     userId,
     title: data.title,
     description: data.description ?? null,
-    dueAt: data.dueAt ? toUtcIso(data.dueAt) : null,
+    dueAt: data.dueAt ? toUtcIso(data.dueAt, data.timezone) : null,
     timezone: data.timezone,
     status: data.status,
     priority: data.priority,
@@ -55,11 +55,11 @@ export async function updateTask(
   id: string,
   input: Partial<z.infer<typeof updateTaskSchema>>
 ): Promise<Task> {
-  await getTask(userId, id);
+  const existing = await getTask(userId, id);
   const data = updateTaskSchema.parse(input);
 
   const patch: Partial<typeof tasks.$inferInsert> = { ...data, updatedAt: nowIso() };
-  if (data.dueAt) patch.dueAt = toUtcIso(data.dueAt);
+  if (data.dueAt) patch.dueAt = toUtcIso(data.dueAt, data.timezone ?? existing.timezone);
   if (data.status === "COMPLETED") patch.completedAt = nowIso();
   if (data.status && data.status !== "COMPLETED") patch.completedAt = null;
 

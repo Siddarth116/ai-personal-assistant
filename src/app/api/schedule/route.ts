@@ -21,8 +21,8 @@ export const GET = withErrorHandling("schedule/get", async (req: Request) => {
 
   const items = await getSchedule(user.id, {
     ...parsed,
-    start: toUtcIso(parsed.start),
-    end: toUtcIso(parsed.end),
+    start: toUtcIso(parsed.start, user.timezone),
+    end: toUtcIso(parsed.end, user.timezone),
   });
 
   return NextResponse.json({ items });

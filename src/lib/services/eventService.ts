@@ -17,8 +17,8 @@ export async function createEvent(userId: string, input: z.input<typeof createEv
     userId,
     title: data.title,
     description: data.description ?? null,
-    startTime: toUtcIso(data.startTime),
-    endTime: toUtcIso(data.endTime),
+    startTime: toUtcIso(data.startTime, data.timezone),
+    endTime: toUtcIso(data.endTime, data.timezone),
     timezone: data.timezone,
     location: data.location ?? null,
     status: data.status,
@@ -58,12 +58,13 @@ export async function updateEvent(
   id: string,
   input: Partial<z.infer<typeof updateEventSchema>>
 ): Promise<Event> {
-  await getEvent(userId, id); // ensures ownership + existence
+  const existing = await getEvent(userId, id); // ensures ownership + existence, and gives us the existing timezone as a fallback
   const data = updateEventSchema.parse(input);
 
   const patch: Partial<typeof events.$inferInsert> = { ...data, updatedAt: nowIso() };
-  if (data.startTime) patch.startTime = toUtcIso(data.startTime);
-  if (data.endTime) patch.endTime = toUtcIso(data.endTime);
+  const zone = data.timezone ?? existing.timezone;
+  if (data.startTime) patch.startTime = toUtcIso(data.startTime, zone);
+  if (data.endTime) patch.endTime = toUtcIso(data.endTime, zone);
 
   await db.update(events).set(patch).where(and(eq(events.id, id), eq(events.userId, userId))).run();
   return getEvent(userId, id);

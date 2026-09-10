@@ -12,9 +12,20 @@ export function nowInTimezone(timezone: string): string {
   return DateTime.now().setZone(timezone).toISO() as string;
 }
 
-/** Parse any ISO-ish string into a UTC ISO string. Throws on invalid input. */
-export function toUtcIso(input: string): string {
-  const dt = DateTime.fromISO(input, { setZone: true });
+/**
+ * Parse any ISO-ish string into a UTC ISO string.
+ *
+ * If the input already has an explicit offset/zone (e.g. "+05:30" or "Z"),
+ * that's always respected - the correct absolute instant is computed
+ * regardless of `fallbackZone`. If the input has NO offset (e.g. an AI or
+ * client accidentally sends a bare "2026-09-10T18:00:00"), it's interpreted
+ * as being in `fallbackZone` rather than the server's own system timezone.
+ * Without this, a zone-less string on a UTC-configured server (e.g. Vercel)
+ * would silently be treated as UTC, shifting times by hours - exactly the
+ * kind of "confused" behavior this guards against.
+ */
+export function toUtcIso(input: string, fallbackZone: string = DEFAULT_TIMEZONE): string {
+  const dt = DateTime.fromISO(input, { zone: fallbackZone });
   if (!dt.isValid) {
     throw new Error(`Invalid date/time: "${input}" (${dt.invalidReason})`);
   }

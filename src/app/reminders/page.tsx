@@ -93,7 +93,9 @@ export default function RemindersPage() {
   }
 
   const now = new Date();
-  const upcoming = reminders.filter((r) => r.status === "PENDING" && new Date(r.remindAt) >= now);
+  const pending = reminders.filter((r) => r.status === "PENDING");
+  const overdue = pending.filter((r) => new Date(r.remindAt) < now);
+  const upcoming = pending.filter((r) => new Date(r.remindAt) >= now);
   const today = upcoming.filter((r) => new Date(r.remindAt).toDateString() === now.toDateString());
   const later = upcoming.filter((r) => new Date(r.remindAt).toDateString() !== now.toDateString());
   const completed = reminders.filter((r) => r.status === "COMPLETED");
@@ -113,6 +115,7 @@ export default function RemindersPage() {
         />
       ) : (
         <div className="space-y-8">
+          <ReminderSection title="Overdue" reminders={overdue} timezone={timezone} onComplete={(r) => updateStatus(r, "COMPLETED")} onDismiss={(r) => updateStatus(r, "DISMISSED")} onEdit={openEdit} onDelete={remove} accent="text-destructive" />
           <ReminderSection title="Today" reminders={today} timezone={timezone} onComplete={(r) => updateStatus(r, "COMPLETED")} onDismiss={(r) => updateStatus(r, "DISMISSED")} onEdit={openEdit} onDelete={remove} />
           <ReminderSection title="Upcoming" reminders={later} timezone={timezone} onComplete={(r) => updateStatus(r, "COMPLETED")} onDismiss={(r) => updateStatus(r, "DISMISSED")} onEdit={openEdit} onDelete={remove} />
           <ReminderSection title="Completed" reminders={completed} timezone={timezone} onEdit={openEdit} onDelete={remove} />
@@ -140,6 +143,7 @@ function ReminderSection({
   onDismiss,
   onEdit,
   onDelete,
+  accent,
 }: {
   title: string;
   reminders: Reminder[];
@@ -148,12 +152,13 @@ function ReminderSection({
   onDismiss?: (r: Reminder) => void;
   onEdit: (r: Reminder) => void;
   onDelete: (r: Reminder) => void;
+  accent?: string;
 }) {
   if (reminders.length === 0) return null;
   return (
     <div>
-      <h2 className="text-sm font-semibold uppercase tracking-wide mb-3 text-muted-foreground">
-        {title} <span className="normal-case font-normal">({reminders.length})</span>
+      <h2 className={`text-sm font-semibold uppercase tracking-wide mb-3 ${accent ?? "text-muted-foreground"}`}>
+        {title} <span className="text-muted-foreground normal-case font-normal">({reminders.length})</span>
       </h2>
       <div className="space-y-2">
         {reminders.map((reminder) => (
@@ -167,6 +172,7 @@ function ReminderSection({
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <Badge tone={reminder.status}>{reminder.status}</Badge>
                 <Badge tone={reminder.priority}>{reminder.priority}</Badge>
+                {accent && <Badge tone="CANCELLED" className={accent}>Past due</Badge>}
                 <span className="text-xs text-muted-foreground">{fmt(reminder.remindAt, timezone, "ccc, d LLL, h:mm a")}</span>
               </div>
             </div>
