@@ -112,12 +112,24 @@ export default function SchedulePage() {
     if (view === "day") next.setDate(next.getDate() + dir);
     else if (view === "week") next.setDate(next.getDate() + dir * 7);
     else next.setMonth(next.getMonth() + dir);
+    setItems(null); // clear synchronously so a stale, differently-shaped dataset never briefly renders under the new anchor
     setAnchor(next);
   }
 
   function selectDayFromGrid(date: Date) {
+    setItems(null); // clear synchronously - otherwise the whole month's items would flash under the "day" view for one frame
     setAnchor(date);
     setView("day");
+  }
+
+  function goToToday() {
+    setItems(null);
+    setAnchor(new Date());
+  }
+
+  function changeView(v: ViewMode) {
+    setItems(null);
+    setView(v);
   }
 
   const rangeLabel =
@@ -150,7 +162,7 @@ export default function SchedulePage() {
               <Button size="icon" variant="outline" onClick={() => shift(-1)} aria-label="Previous">
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <Button size="sm" variant="secondary" onClick={() => setAnchor(new Date())}>Today</Button>
+              <Button size="sm" variant="secondary" onClick={goToToday}>Today</Button>
               <Button size="icon" variant="outline" onClick={() => shift(1)} aria-label="Next">
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -160,7 +172,7 @@ export default function SchedulePage() {
               {(["day", "week", "month"] as ViewMode[]).map((v) => (
                 <button
                   key={v}
-                  onClick={() => setView(v)}
+                  onClick={() => changeView(v)}
                   className={`px-3 py-1 rounded-md text-sm font-medium capitalize transition-colors ${view === v ? "bg-card shadow-sm" : "text-muted-foreground"}`}
                 >
                   {v}
