@@ -64,3 +64,14 @@ export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
+
+export const updateSettingsSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  timezone: z.string().min(1).optional(),
+  hourFormat: z.union([z.literal(12), z.literal(24)]).optional(),
+  weekStartsOn: z.enum(["MONDAY", "SUNDAY"]).optional(),
+  theme: z.enum(["light", "dark", "system"]).optional(),
+  notificationsEnabled: z.boolean().optional(),
+  // 0 = advance notification disabled (exact-time notification still fires).
+  notificationLeadMinutes: z.number().int().min(0).max(1440).optional(),
+});

@@ -10,6 +10,8 @@ export interface SessionUser {
   hourFormat: number;
   weekStartsOn: string;
   theme: string;
+  notificationsEnabled: boolean;
+  notificationLeadMinutes: number;
 }
 
 interface SessionContextValue {

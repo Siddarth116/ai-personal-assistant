@@ -14,6 +14,11 @@ export const users = sqliteTable("users", {
   hourFormat: integer("hour_format").notNull().default(24), // 12 or 24
   weekStartsOn: text("week_starts_on").notNull().default("MONDAY"), // MONDAY | SUNDAY
   theme: text("theme").notNull().default("system"), // light | dark | system
+  notificationsEnabled: integer("notifications_enabled", { mode: "boolean" }).notNull().default(true),
+  // Minutes of advance warning before an item's time. 0 disables the advance
+  // notification entirely (the at-the-exact-time notification always fires
+  // regardless, as long as notificationsEnabled is true).
+  notificationLeadMinutes: integer("notification_lead_minutes").notNull().default(15),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(current_timestamp)`),

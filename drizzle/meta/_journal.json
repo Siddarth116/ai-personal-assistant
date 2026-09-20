@@ -15,6 +15,13 @@
       "when": 1788429708966,
       "tag": "0001_graceful_gideon",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789898698838,
+      "tag": "0002_foamy_winter_soldier",
+      "breakpoints": true
     }
   ]
 }

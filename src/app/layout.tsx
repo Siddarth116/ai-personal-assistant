@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { SessionProvider } from "@/components/layout/SessionProvider";
 import { ToastProvider } from "@/components/ui/Toast";
+import { NotificationScheduler } from "@/components/layout/NotificationScheduler";
 
 export const metadata: Metadata = {
   title: "AI Personal Assistant",
@@ -13,7 +14,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="font-sans antialiased">
         <SessionProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <NotificationScheduler />
+            {children}
+          </ToastProvider>
         </SessionProvider>
       </body>
     </html>

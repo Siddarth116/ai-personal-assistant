@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { useSession } from "@/components/layout/SessionProvider";
@@ -13,6 +13,16 @@ const TIMEZONES = [
   "Europe/Berlin", "Asia/Tokyo", "Asia/Singapore", "Asia/Dubai", "Australia/Sydney",
 ];
 
+const LEAD_TIME_OPTIONS = [
+  { value: 0, label: "At the time only (no advance notice)" },
+  { value: 5, label: "5 minutes before" },
+  { value: 15, label: "15 minutes before" },
+  { value: 30, label: "30 minutes before" },
+  { value: 60, label: "1 hour before" },
+  { value: 180, label: "3 hours before" },
+  { value: 1440, label: "1 day before" },
+];
+
 export default function SettingsPage() {
   const router = useRouter();
   const { user, refresh } = useSession();
@@ -23,17 +33,57 @@ export default function SettingsPage() {
   const [hourFormat, setHourFormat] = useState(user?.hourFormat ?? 24);
   const [weekStartsOn, setWeekStartsOn] = useState(user?.weekStartsOn ?? "MONDAY");
   const [theme, setTheme] = useState(user?.theme ?? "system");
-  const [browserNotif, setBrowserNotif] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(user?.notificationsEnabled ?? true);
+  const [notificationLeadMinutes, setNotificationLeadMinutes] = useState(user?.notificationLeadMinutes ?? 15);
+  const [browserPermission, setBrowserPermission] = useState<NotificationPermission | "unsupported">("default");
   const [saving, setSaving] = useState(false);
+
+  // Keep local form state in sync once the session actually loads (it's null on first render).
+  useEffect(() => {
+    if (!user) return;
+    setName(user.name);
+    setTimezone(user.timezone);
+    setHourFormat(user.hourFormat);
+    setWeekStartsOn(user.weekStartsOn);
+    setTheme(user.theme);
+    setNotificationsEnabled(user.notificationsEnabled);
+    setNotificationLeadMinutes(user.notificationLeadMinutes);
+  }, [user]);
+
+  // Reflect the browser's actual current permission state, not just a local guess.
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setBrowserPermission("unsupported");
+      return;
+    }
+    setBrowserPermission(Notification.permission);
+  }, []);
 
   async function handleSave() {
     setSaving(true);
     try {
-      // A dedicated PATCH /api/settings route would persist these; kept
-      // client-side here since preferences aren't required for core
-      // schedule/AI functionality, per the simplified scope of this build.
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          timezone,
+          hourFormat,
+          weekStartsOn,
+          theme,
+          notificationsEnabled,
+          notificationLeadMinutes,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || "Unable to save preferences.", "error");
+        return;
+      }
       showToast("Preferences saved.");
       await refresh();
+    } catch {
+      showToast("Unable to save preferences.", "error");
     } finally {
       setSaving(false);
     }
@@ -45,8 +95,9 @@ export default function SettingsPage() {
       return;
     }
     const perm = await Notification.requestPermission();
-    setBrowserNotif(perm === "granted");
+    setBrowserPermission(perm);
     if (perm === "granted") showToast("Browser notifications enabled.");
+    else if (perm === "denied") showToast("Browser notifications were blocked. You can re-enable them in your browser's site settings.", "error");
   }
 
   async function handleSignOut() {
@@ -110,14 +161,67 @@ export default function SettingsPage() {
 
         <Card className="p-5">
           <h2 className="font-semibold mb-4">Notifications</h2>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Browser notifications</p>
-              <p className="text-xs text-muted-foreground">Get notified when reminders are due, while the app is open.</p>
+          <div className="space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Enable notifications</p>
+                <p className="text-xs text-muted-foreground">Master switch for reminders about upcoming events, tasks, and reminders.</p>
+              </div>
+              <button
+                role="switch"
+                aria-checked={notificationsEnabled}
+                onClick={() => setNotificationsEnabled((v) => !v)}
+                className={`relative h-6 w-11 rounded-full transition-colors shrink-0 ${notificationsEnabled ? "bg-primary" : "bg-muted"}`}
+              >
+                <span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${notificationsEnabled ? "translate-x-5" : "translate-x-0.5"}`}
+                />
+              </button>
             </div>
-            <Button size="sm" variant={browserNotif ? "secondary" : "outline"} onClick={requestBrowserNotifications}>
-              {browserNotif ? "Enabled" : "Enable"}
-            </Button>
+
+            <div>
+              <Label>Notify me before it's due</Label>
+              <Select
+                value={notificationLeadMinutes}
+                onChange={(e) => setNotificationLeadMinutes(Number(e.target.value))}
+                disabled={!notificationsEnabled}
+              >
+                {LEAD_TIME_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                You'll always also get a notification right at the exact time, in addition to this advance notice.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between pt-1 border-t border-border">
+              <div>
+                <p className="text-sm font-medium">Browser notifications</p>
+                <p className="text-xs text-muted-foreground">
+                  {browserPermission === "granted"
+                    ? "Enabled for this browser."
+                    : browserPermission === "denied"
+                    ? "Blocked - re-enable via your browser's site settings."
+                    : browserPermission === "unsupported"
+                    ? "Not supported in this browser."
+                    : "Grant permission to also see notifications outside this tab."}
+                </p>
+              </div>
+              {browserPermission !== "unsupported" && (
+                <Button
+                  size="sm"
+                  variant={browserPermission === "granted" ? "secondary" : "outline"}
+                  onClick={requestBrowserNotifications}
+                  disabled={browserPermission === "granted" || browserPermission === "denied"}
+                >
+                  {browserPermission === "granted" ? "Enabled" : "Enable"}
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Notifications only arrive while a browser tab with this app open is running on that device - they won't reach a closed browser or a device the app isn't open on.
+            </p>
           </div>
         </Card>
 

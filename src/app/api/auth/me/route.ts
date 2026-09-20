@@ -17,6 +17,8 @@ export const GET = withErrorHandling("auth/me", async () => {
       hourFormat: user.hourFormat,
       weekStartsOn: user.weekStartsOn,
       theme: user.theme,
+      notificationsEnabled: user.notificationsEnabled,
+      notificationLeadMinutes: user.notificationLeadMinutes,
     },
     aiConfigured: isAiConfigured(),
   });
