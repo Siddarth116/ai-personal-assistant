@@ -7,6 +7,12 @@ import { useSession } from "@/components/layout/SessionProvider";
 import { Card, Input, Label, Select } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import {
+  isPushSupported,
+  enablePushNotifications,
+  disablePushNotifications,
+  getCurrentPushSubscriptionEndpoint,
+} from "@/lib/push/clientPush";
 
 const TIMEZONES = [
   "Asia/Kolkata", "UTC", "America/New_York", "America/Los_Angeles", "Europe/London",
@@ -35,7 +41,8 @@ export default function SettingsPage() {
   const [theme, setTheme] = useState(user?.theme ?? "system");
   const [notificationsEnabled, setNotificationsEnabled] = useState(user?.notificationsEnabled ?? true);
   const [notificationLeadMinutes, setNotificationLeadMinutes] = useState(user?.notificationLeadMinutes ?? 15);
-  const [browserPermission, setBrowserPermission] = useState<NotificationPermission | "unsupported">("default");
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Keep local form state in sync once the session actually loads (it's null on first render).
@@ -50,13 +57,9 @@ export default function SettingsPage() {
     setNotificationLeadMinutes(user.notificationLeadMinutes);
   }, [user]);
 
-  // Reflect the browser's actual current permission state, not just a local guess.
+  // Reflect whether THIS device/browser already has an active push subscription.
   useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) {
-      setBrowserPermission("unsupported");
-      return;
-    }
-    setBrowserPermission(Notification.permission);
+    getCurrentPushSubscriptionEndpoint().then((endpoint) => setPushSubscribed(!!endpoint));
   }, []);
 
   async function handleSave() {
@@ -90,14 +93,29 @@ export default function SettingsPage() {
   }
 
   async function requestBrowserNotifications() {
-    if (!("Notification" in window)) {
-      showToast("Browser notifications aren't supported here.", "error");
-      return;
+    setPushBusy(true);
+    try {
+      await enablePushNotifications();
+      setPushSubscribed(true);
+      showToast("Push notifications enabled on this device.");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Unable to enable push notifications.", "error");
+    } finally {
+      setPushBusy(false);
     }
-    const perm = await Notification.requestPermission();
-    setBrowserPermission(perm);
-    if (perm === "granted") showToast("Browser notifications enabled.");
-    else if (perm === "denied") showToast("Browser notifications were blocked. You can re-enable them in your browser's site settings.", "error");
+  }
+
+  async function handleDisablePush() {
+    setPushBusy(true);
+    try {
+      await disablePushNotifications();
+      setPushSubscribed(false);
+      showToast("Push notifications disabled on this device.");
+    } catch {
+      showToast("Unable to disable push notifications.", "error");
+    } finally {
+      setPushBusy(false);
+    }
   }
 
   async function handleSignOut() {
@@ -197,30 +215,28 @@ export default function SettingsPage() {
 
             <div className="flex items-center justify-between pt-1 border-t border-border">
               <div>
-                <p className="text-sm font-medium">Browser notifications</p>
+                <p className="text-sm font-medium">Push notifications on this device</p>
                 <p className="text-xs text-muted-foreground">
-                  {browserPermission === "granted"
-                    ? "Enabled for this browser."
-                    : browserPermission === "denied"
-                    ? "Blocked - re-enable via your browser's site settings."
-                    : browserPermission === "unsupported"
+                  {!isPushSupported()
                     ? "Not supported in this browser."
-                    : "Grant permission to also see notifications outside this tab."}
+                    : pushSubscribed
+                    ? "Enabled - this device will receive notifications even when no tab is open."
+                    : "Grant permission to receive real notifications on this device, including when the app isn't open."}
                 </p>
               </div>
-              {browserPermission !== "unsupported" && (
+              {isPushSupported() && (
                 <Button
                   size="sm"
-                  variant={browserPermission === "granted" ? "secondary" : "outline"}
-                  onClick={requestBrowserNotifications}
-                  disabled={browserPermission === "granted" || browserPermission === "denied"}
+                  variant={pushSubscribed ? "secondary" : "outline"}
+                  onClick={pushSubscribed ? handleDisablePush : requestBrowserNotifications}
+                  disabled={pushBusy}
                 >
-                  {browserPermission === "granted" ? "Enabled" : "Enable"}
+                  {pushSubscribed ? "Disable" : "Enable"}
                 </Button>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Notifications only arrive while a browser tab with this app open is running on that device - they won't reach a closed browser or a device the app isn't open on.
+              This has to be enabled separately on each device you want notifications on (your phone, your laptop, etc.) - it's tied to the browser you enable it in, not your account as a whole.
             </p>
           </div>
         </Card>

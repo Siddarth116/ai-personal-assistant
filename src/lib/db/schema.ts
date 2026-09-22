@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
@@ -155,3 +155,52 @@ export type Task = typeof tasks.$inferSelect;
 export type Reminder = typeof reminders.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// Web Push - real push delivery, works even when no tab is open (unlike the
+// client-side NotificationScheduler, which only runs while a tab is active).
+// ---------------------------------------------------------------------------
+
+export const pushSubscriptions = sqliteTable("push_subscriptions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  authKey: text("auth_key").notNull(),
+  // A human-readable label (e.g. derived from the browser's user agent) shown
+  // in Settings so the user can tell which of their devices a subscription is.
+  label: text("label"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(current_timestamp)`),
+});
+
+// Tracks which (user, item occurrence, kind) combinations have already had a
+// push sent for them, persisted server-side so it survives across separate
+// cron invocations (unlike the client scheduler's localStorage-based dedup).
+export const sentPushNotifications = sqliteTable("sent_push_notifications", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  itemType: text("item_type").notNull(), // EVENT | TASK | REMINDER
+  itemId: text("item_id").notNull(),
+  itemTime: text("item_time").notNull(), // the specific occurrence's UTC ISO time - see notifications/scheduler.ts for why this matters for recurring events
+  kind: text("kind").notNull(), // "lead" | "exact"
+  sentAt: text("sent_at")
+    .notNull()
+    .default(sql`(current_timestamp)`),
+}, (table) => ({
+  uniqueTrigger: uniqueIndex("sent_push_unique_trigger").on(
+    table.userId,
+    table.itemType,
+    table.itemId,
+    table.itemTime,
+    table.kind
+  ),
+}));
+
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type SentPushNotification = typeof sentPushNotifications.$inferSelect;
